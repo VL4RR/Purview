@@ -2,7 +2,7 @@
 #Connect-ExchangeOnline
 #Connect-MgGraph -Scopes "OrgSettings-AppsAndServices.Read.All", "Team.ReadBasic.All"
 
-##Define HTML
+##Define HTMLTest
 $HTML = "C:\temp\CurrentComplianceReport.html"
 $date = Get-Date -Format "yyyy-MM-dd"
 Set-Content -Path $HTML -Value @"
