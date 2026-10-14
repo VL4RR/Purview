@@ -34,7 +34,7 @@ h3:hover {background: #e9ecef;}
 .label-group-content {padding: 15px;background-color: #fff;border: 1px solid #ddd;border-radius: 4px;}
 h4 {color: #212529;font-weight: 600;margin: 10px 0 5px 0;}
 table {width: 100%;border-collapse: collapse;margin: 15px 0;font-size: 16px;table-layout: fixed;}
-th, td {border: 1px solid #ddd;padding: 9px 13px;text-align: left;font-size: 16px;word-wrap: break-word;vertical-align: top;}
+th, td {border: 1px solid #ddd;padding: 9px 13px;text-align: left;font-size: 14px;word-wrap: break-word;vertical-align: top;}
 th {background-color: #e9ecef;color: #212529;font-weight: 600;}
 tr:nth-child(even) {background-color: #f8f9fa;}
 tr:hover {background-color: #e9ecef;}
@@ -1093,13 +1093,13 @@ function DLPPolicies {
         $DLPODLoc = $DLPPol.OneDriveLocation
         $DLPODInc = $DLPPol.OneDriveSharedBy + $DLPPol.OneDriveSharedByMemberOf | ConvertFrom-Json
         $DLPSPOASExc = $DLPPol.ExceptIfOneDriveSharedByMemberOf + $DLPPol.ExceptIfOneDriveSharedBy | ConvertFrom-Json
-        if ($DLPODLoc.DisplayName) {
+        if ($DLPODLoc) {
             if ($DLPODInc.DisplayName) {
                 "<tr><td>OneDrive Location</td><td>" | Add-Content $HTML
                 foreach ($group in $DLPODInc) { "$($group.DisplayName) <strong>($($RecipientTypeConv[[string]$group.RecipientTypeDetails]))</strong><br>" | Add-Content $HTML }
                 "</td></tr>" | Add-Content $HTML 
             }
-            else { "<tr><td>OneDrive Location</td><td>$($DLPExcInc.DisplayName)</td></tr>" | Add-Content $HTML }
+            else { "<tr><td>OneDrive Location</td><td>$($DLPODLoc.DisplayName)</td></tr>" | Add-Content $HTML }
             if ($DLPSPOASExc.DisplayName) {
                 "<tr><td>OneDrive Exception</td><td>" | Add-Content $HTML
                 foreach ($group in $DLPSPOASExc) { "$($group.DisplayName) <strong>($($RecipientTypeConv[[string]$group.RecipientTypeDetails]))</strong><br>" | Add-Content $HTML }
@@ -1117,19 +1117,20 @@ function DLPPolicies {
 
         $DLPTmsLoc = $DLPPol.TeamsLocation
         $DLPTmsExc = $DLPPol.TeamsLocationException
-        if ($DLPTmsLoc.DisplayName -eq "All") { "<tr><td>Teams Location</td><td>$($DLPTmsLoc.DisplayName)</td></tr>" | Add-Content $HTML }
-        else {
-            "<tr><td>Teams Location</td><td>" | Add-Content $HTML  
-            foreach ($assign in $DLPTmsLoc) { "$($assign.DisplayName) <strong>($($teamsGroups[[string]$assign.Type]))</strong><br>" | Add-Content $HTML }
-            "</td></tr>" | Add-Content $HTML 
+        if ($DLPPol.TeamsLocation) {
+            if ($DLPTmsLoc.DisplayName -eq "All") { "<tr><td>Teams Location</td><td>$($DLPTmsLoc.DisplayName)</td></tr>" | Add-Content $HTML }
+            else {
+                "<tr><td>Teams Location</td><td>" | Add-Content $HTML  
+                foreach ($assign in $DLPTmsLoc) { "$($assign.DisplayName) <strong>($($teamsGroups[[string]$assign.Type]))</strong><br>" | Add-Content $HTML }
+                "</td></tr>" | Add-Content $HTML 
+            }
+            if ($DLPTmsExc.DisplayName) {
+                "<tr><td>Teams Exception</td><td>" | Add-Content $HTML
+                foreach ($assign in $DLPTmsExc) { "$($assign.DisplayName) <strong>($($teamsGroups[[string]$assign.Type]))</strong><br>" | Add-Content $HTML }
+                "</td></tr>" | Add-Content $HTML 
+            }
+            else { "<tr><td>Teams Exclusion</td><td>N/A</td></tr>" | Add-Content $HTML }
         }
-        if ($DLPTmsExc.DisplayName) {
-            "<tr><td>Teams Exception</td><td>" | Add-Content $HTML
-            foreach ($assign in $DLPTmsExc) { "$($assign.DisplayName) <strong>($($teamsGroups[[string]$assign.Type]))</strong><br>" | Add-Content $HTML }
-            "</td></tr>" | Add-Content $HTML 
-        }
-        else { "<tr><td>Teams Exclusion</td><td>N/A</td></tr>" | Add-Content $HTML }
-
         #Devices - user and groups
         $DLPDevLoc = $DLPPol.EndpointDlpLocation
         $DLPDevExc = $DLPPol.EndpointDlpLocationException
@@ -1148,31 +1149,21 @@ function DLPPolicies {
             }
             if ($DLPDevInc) {
                 "<strong>Device/Device Group:</strong><br>" | Add-Content $HTML
-                foreach ($group in $DLPDevInc) { 
-                    "$($group.DisplayName) $(if ($group.Type.ToString() -eq 'Group') { '(Group)' })<br>" | Add-Content $HTML 
-                }
+                foreach ($group in $DLPDevInc) { "$($group.DisplayName) $(if ($group.Type.ToString() -eq 'Group') { '(Group)' })<br>" | Add-Content $HTML }
             }
             "</td></tr>" | Add-Content $HTML
             "<tr><td>Device Exclusion</td><td>" | Add-Content $HTML
    
             if ($DLPDevExc.DisplayName -or $DLPDevExcl) { 
                 "<strong>User/User Group:</strong><br>" | Add-Content $HTML
-                if ($DLPDevExc) {
-                    foreach ($group in $DLPDevExc) {
-                        "$($group.DisplayName) $(if ($group.Type.ToString() -eq 'Group') { '(Group)' })<br>" | Add-Content $HTML
-                    }
-                }
+                if ($DLPDevExc) { foreach ($group in $DLPDevExc) { "$($group.DisplayName) $(if ($group.Type.ToString() -eq 'Group') { '(Group)' })<br>" | Add-Content $HTML } }
                 if ($DLPDevExcl) {
                     "<strong>Device/Device Group:</strong><br>" | Add-Content $HTML
-                    foreach ($group in $DLPDevExcl) { 
-                        "$($group.DisplayName) $(if ($group.Type.ToString() -eq 'Group') { '(Group)' })<br>" | Add-Content $HTML 
-                    }
+                    foreach ($group in $DLPDevExcl) { "$($group.DisplayName) $(if ($group.Type.ToString() -eq 'Group') { '(Group)' })<br>" | Add-Content $HTML }
                 }
                 "</td></tr>" | Add-Content $HTML
             }
-            else {
-                "N/A</tr>" | Add-Content $HTML
-            }
+            else { "N/A</tr>" | Add-Content $HTML }
         }
 
         #Instances - WILL NEED LOOKING AT, AT A LATER DATE WHEN EXAMPLES CAN BE OBSERVED ####################################################################################################################
@@ -1182,26 +1173,17 @@ function DLPPolicies {
         elseif (-not([string]::IsNullOrEmpty($DLPPol.ThirdPartyAppDlpLocation.DisplayName)) -and $DLPPol.ThirdPartyAppDlpLocation.DisplayName -notcontains "All") {
             "<tr><td>Instances</td><td>Specific Instances have been selected</td></tr>" | Add-Content $HTML
         }
-        #On-Prem - WILL NEED LOOKING AT, AT A LATER DATE WHEN EXAMPLES CAN BE OBSERVED ####################################################################################################################
-        if ($DLPPol.OnPremisesScannerDlpLocation.DisplayName -eq "All") {
-            "<tr><td>On-Prem Repositories</td><td>All Repositories</td></tr>" | Add-Content $HTML
-        }
-        elseif (-not([string]::IsNullOrEmpty($DLPPol.OnPremisesScannerDlpLocation.DisplayName)) -and $DLPPol.OnPremisesScannerDlpLocation.DisplayName -notcontains "All") {
-            "<tr><td>On-Prem Repositories</td><td>Specific Repositories have been selected</td></tr>" | Add-Content $HTML
-        }
-        #Fabric and PowerBI
-        if ($DLPPol.PowerBIDlpLocation.DisplayName -eq "All") {
-            "<tr><td>Fabric and Power BI Workspaces</td><td>All Workspaces</td></tr>" | Add-Content $HTML
-        }
-        elseif (-not([string]::IsNullOrEmpty($DLPPol.PowerBIDlpLocation.DisplayName)) -and $DLPPol.OnPremisesScannerDlpLocation.DisplayName -notcontains "All") {
-            foreach ($workspace in $DLPPol.PowerBIDlpLocation) {
-                "<tr><td>Fabric and Power BI Workspaces</td><td>Specific Repositories have been selected</td></tr>" | Add-Content $HTML
-            }
+        #Instances - WILL NEED LOOKING AT, AT A LATER DATE WHEN EXAMPLES CAN BE OBSERVED ####################################################################################################################
+        
+        #On-Prem
+        if ($DLPPol.OnPremisesScannerDlpLocation) {
+            "<tr><td>On-premises repositories</td><td>$(($DLPPol.OnPremisesScannerDlpLocation.DisplayName) -join '<br>')</td></tr>" | Add-Content $HTML
+            if ($DLPPol.OnPremisesScannerDlpLocationException) { "<tr><td>On-premises repositories exclusions</td><td>$(($DLPPol.OnPremisesScannerDlpLocationException.DisplayName) -join '<br>')</td></tr>" | Add-Content $HTML }
+            else { "<tr><td>On-premises repositories exclusions</td><td>N/A</td></tr>" | Add-Content $HTML }
         }
 
         #End of location table
         "</table>" | Add-Content $HTML
-
 
         #Close section-content div
         "</div>" | Add-Content $HTML
