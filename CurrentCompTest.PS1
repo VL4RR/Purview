@@ -1185,18 +1185,289 @@ function DLPPolicies {
         #End of location table
         "</table>" | Add-Content $HTML
 
+        ################################################### DLP RULES ################################################
+
+
+        $DLPRule = Get-AutoSensitivityLabelRule -DisplayName $DLPPol
+        foreach ($AuRule in $DLPRule) {
+            function Get-ConditionDisplayName {
+                param ([string]$ConditionName)
+
+                $allConditionsCondition = @{
+                    "ContentContainsSensitiveInformation" = "Content Contains:"
+                    "AccessScope"                         = "Content is shared:"
+                    "SenderIPRanges"                      = "Sender IP address is:"
+                    "RecipientDomainIs"                   = "Recipient domain is:"
+                    "ContentExtensionMatchesWords"        = "Attachment extension is:"
+                    "DocumentIsPasswordProtected"         = "Attachment is password protected"
+                    "DocumentIsUnsupported"               = "Any email attachment's content could not be scanned"
+                    "ProcessingLimitExceeded"             = "Any email attachment's content didn't complete scanning"
+                    "HeaderMatchesPatterns"               = "Header matches patterns:"
+                    "SubjectMatchesPatterns"              = "Subject matches patterns:"
+                    "AnyOfRecipientAddressContainsWords"  = "Recipient address contains words:"
+                    "FromAddressMatchesPatterns"          = "Sender address matches pattern"
+                    "SenderDomainIs"                      = "Sender domain is:"
+                    "SentToMemberOf"                      = "Recipient is a member of:"
+                    "From"                                = "Sender is:"
+                    "DocumentNameMatchesWords"            = "Attachment name matches words or phrases:"
+                    "ContentPropertyContainsWords"        = "Attachment property is:"
+                    "DocumentSizeOver"                    = "Attachment size equals or is greater than:"
+                    "SentTo"                              = "Recipient is:"
+
+                    "DocumentCreatedBy"                   = "Document created by:"
+                    "DocumentCreatedOnOrAfter"            = "Document creation date is on or after"
+                    "DocumentCreatedOnOrBefore"           = "Document creation date is on or before"
+                    "DocumentLastModifiedOnOrAfter"       = "Document modification date is on or after"
+                    "DocumentLastModifiedOnOrBefore"      = "Document modification date is on or before"
+                }
+
+                if ($allConditionsCondition.ContainsKey($ConditionName)) { return $allConditionsCondition[$ConditionName] }
+                return $ConditionName
+            }
+
+            function Get-ValueDisplayName {
+                param (
+                    [AllowNull()]
+                    $Value
+                )
+
+                $allConditionsValue = @{
+                    "NotInOrganization" = "With people outside my organization"
+                    "InOrganization"    = "Only with people inside my organization"
+                }
+
+                if (
+                    $null -ne $Value -and
+                    $allConditionsValue.ContainsKey([string]$Value)
+                ) { return $allConditionsValue[[string]$Value] }
+                return $Value
+            }
+
+            function Write-ConditionValue {
+                param (
+                    $Condition,
+                    [string]$HTML
+                )
+
+                if ($Condition.ConditionName -eq "ContentContainsSensitiveInformation") {
+                    foreach ($valueItem in @($Condition.Value)) {
+                        $groupCount = 0
+                        foreach ($sitGroup in @($valueItem.Groups)) {
+                            $groupCount++
+                            "<div class='sit-group'>" | Add-Content -Path $HTML
+                            "<strong>Group name:</strong> $($sitGroup.Name)" | Add-Content -Path $HTML
+                            if ($($sitGroup.Operator) -eq "And") { "<strong> Group operator:</strong> All of these<br>" | Add-Content -Path $HTML }
+                            else { "<strong> Group operator:</strong> Any of these<br>" | Add-Content -Path $HTML }
+                            $regularTypes = @()
+                            $trainableTypes = @()
+                            foreach ($sensitiveType in @($sitGroup.Sensitivetypes)) {
+                                if ($sensitiveType.Classifiertype -eq "MLModel") {
+                                    $trainableTypes += $sensitiveType
+                                }
+                                else {
+                                    $regularTypes += $sensitiveType
+                                }
+                            }
+                            $meaningfulRegularTypes = $regularTypes | Where-Object {
+                                $_.Confidencelevel -and $_.Confidencelevel.Trim() -ne ''
+                            }
+                            if ($meaningfulRegularTypes.Count -gt 0) {
+                                "<div class='sit-item'>" | Add-Content -Path $HTML
+                                "<strong>&nbsp;&nbsp;&nbsp;Sensitive Information Types:</strong><br>" | Add-Content -Path $HTML
+                                "</div>" | Add-Content -Path $HTML
+                                foreach ($sensitiveType in $meaningfulRegularTypes) {
+                                    "<div class='sit-item'>" | Add-Content -Path $HTML
+                                    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$($sensitiveType.Name) --- $($sensitiveType.Confidencelevel) --- $($sensitiveType.Mincount) to " | Add-Content -Path $HTML
+                                    if ($($sensitiveType.Maxcount) -eq "-1") { "Any" | Add-Content -Path $HTML }
+                                    else { "$($sensitiveType.Maxcount)<br>" | Add-Content -Path $HTML }
+                                    "</div>" | Add-Content -Path $HTML
+                                }
+                            }
+                            if ($trainableTypes.Count -gt 0) {
+                                "<div class='sit-item'>" | Add-Content -Path $HTML
+                                "<strong>&nbsp;&nbsp;&nbsp;Trainable Classifiers:</strong><br>" | Add-Content -Path $HTML
+                                "</div>" | Add-Content -Path $HTML
+                                foreach ($sensitiveType in $trainableTypes) {
+                                    "<div class='sit-item'>" | Add-Content -Path $HTML
+                                    "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$($sensitiveType.Name)<br>" | Add-Content -Path $HTML
+                                    "</div>" | Add-Content -Path $HTML
+                                }
+                            }
+                            # Handle Sensitivity Labels
+                            $sensitivityLabels = @()
+                            if ($sitGroup.Labels) {
+                                foreach ($label in @($sitGroup.Labels)) {
+                                    if ($label.Type -eq "Sensitivity") { $sensitivityLabels += $label }
+                                }
+                            }
+                            if ($sensitivityLabels.Count -gt 0) {
+                                "<div class='sit-item'>" | Add-Content -Path $HTML
+                                "<strong>&nbsp;&nbsp;&nbsp;Sensitivity Labels:</strong><br>" | Add-Content -Path $HTML
+                                "</div>" | Add-Content -Path $HTML
+                                foreach ($label in $sensitivityLabels) {
+                                    # Find the label in $script:Labels by ImmutableId (matching against label.Id or label.Name from JSON)
+                                    $labelInfo = $script:Labels | Where-Object { $_.ImmutableId -eq $label.Id -or $_.ImmutableId -eq $label.Name } | Select-Object -First 1
+                                    if ($labelInfo) {
+                                        "<div class='sit-item'>" | Add-Content -Path $HTML
+                                        "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$($labelInfo.DisplayName)<br>" | Add-Content -Path $HTML
+                                        "</div>" | Add-Content -Path $HTML
+                                    }
+                                    else {
+                                        # Fallback to showing the ID if label not found
+                                        "<div class='sit-item'>" | Add-Content -Path $HTML
+                                        "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$($label.Id)<br>" | Add-Content -Path $HTML
+                                        "</div>" | Add-Content -Path $HTML
+                                    }
+                                }
+                            }
+                            "</div>" | Add-Content -Path $HTML
+                            # Show operator BETWEEN groups (but not after the last group)
+                            if ($groupCount -lt $valueItem.Groups.Count) {
+                                "<div class='sit-group-operator'>$($valueItem.Operator)</div>" | Add-Content -Path $HTML
+                            }
+                        }
+                    }
+
+                    return
+                }
+                if ($null -ne $Condition.Value) {
+                    if ($Condition.ConditionName.Trim() -eq "HeaderMatchesPatterns") {
+                        # Handle HeaderMatchesPatterns specially: show key and sub-values
+                        try {
+                            if ($Condition.Value) {
+                                $propertyNames = $Condition.Value.PSObject.Properties.Name
+                                if ($propertyNames) {
+                                    foreach ($key in $propertyNames) {
+                                        "<strong>&nbsp;&nbsp;&nbsp;Header:</strong> $key<br>" | Add-Content -Path $HTML
+                                        "<strong>&nbsp;&nbsp;&nbsp;Values:</strong><br>" | Add-Content -Path $HTML
+                                        $subValues = @($Condition.Value.$key)
+                                        if ($subValues.Count -gt 0) {
+                                            foreach ($subValue in $subValues) {
+                                                "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$subValue<br>" | Add-Content -Path $HTML
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        catch {
+                            # Fallback to generic handling if special processing fails
+                            $displayValues = foreach ($valueItem in @($Condition.Value)) { Get-ValueDisplayName -Value $valueItem }
+                            "&nbsp;&nbsp;&nbsp;$($displayValues -join '<br>&nbsp;&nbsp;&nbsp;')<br>" | Add-Content -Path $HTML
+                        }
+                    }
+                    else {
+                        $displayValues = foreach ($valueItem in @($Condition.Value)) { Get-ValueDisplayName -Value $valueItem }
+                        # Join with <br> instead of comma for new lines
+                        "&nbsp;&nbsp;&nbsp;$($displayValues -join '<br>&nbsp;&nbsp;&nbsp;')<br>" | Add-Content -Path $HTML
+                    }
+                }
+                if ($Condition.GlobalListIds) { "GlobalListIds: $(@($Condition.GlobalListIds) -join ', ')<br>" | Add-Content -Path $HTML }
+            }
+
+            function Write-ConditionGroup {
+                param (
+                    $Condition,
+                    [string]$HTML,
+                    [int]$Depth = 0,
+                    [string]$GroupName = "Group"
+                )
+
+
+                "<div class='condition-group group-depth-$Depth'>" | Add-Content -Path $HTML
+                "<div class='condition-group-heading'>" | Add-Content -Path $HTML
+                "<strong>$GroupName</strong> " | Add-Content -Path $HTML
+                "</div>" | Add-Content -Path $HTML
+
+                $nestedGroupNumber = 0
+                foreach ($Item in @($Condition.SubConditions)) {
+
+                    if ($null -ne $Item.ConditionName) {
+                        $conditionDisplayName = Get-ConditionDisplayName -ConditionName $Item.ConditionName
+                        "<div class='condition-item'>" | Add-Content -Path $HTML
+                        "<strong>$conditionDisplayName</strong><br>" | Add-Content -Path $HTML
+                        Write-ConditionValue -Condition $Item -HTML $HTML
+                        "</div>" | Add-Content -Path $HTML
+                    }
+                    elseif ($null -ne $Item.SubConditions) {
+                        $nestedGroupNumber++
+                        Write-ConditionGroup -Condition $Item -HTML $HTML -Depth ($Depth + 1) -GroupName "Group $nestedGroupNumber"
+                    }
+                }
+
+                "</div>" | Add-Content -Path $HTML
+            }
+
+            $AutoRule = Get-AutoSensitivityLabelRule -Identity $AuRule.Identity
+            $test = $AutoRule.AdvancedRule | ConvertFrom-Json
+            "<div style='background-color: #e8f5e8; padding: 10px; border-radius: 4px; margin: 8px 0; color: #212529;'>" | Add-Content -Path $HTML
+            "<strong>$($AutoRule.DisplayName):</strong>" | Add-Content -Path $HTML
+            "</div>" | Add-Content -Path $HTML
+            "<div class='advanced-rules-container'>" | Add-Content -Path $HTML
+            function GroupBox {
+                param (
+                    $Condition,
+                    [string]$HTML,
+                    [int]$Index,
+                    [int]$Depth
+                )
+                "<div class='condition-group group-depth-$Depth'>" | Add-Content -Path $HTML
+                "<div class='condition-group-heading'>" | Add-Content -Path $HTML
+                "<strong>Group $Index</strong>" | Add-Content -Path $HTML
+                if ($Condition.Operator -eq "Not") { " <span class='condition-not-operator'>(Not)</span>" | Add-Content -Path $HTML }
+                "</div>" | Add-Content -Path $HTML
+                if ($Condition.SubConditions) {
+                    $nestedGroupNumber = 0
+                    $itemCount = 0
+                    foreach ($Item in @($Condition.SubConditions)) {
+                        $itemCount++
+                        if ($null -ne $Item.ConditionName) {
+                            $conditionDisplayName = Get-ConditionDisplayName -ConditionName $Item.ConditionName
+                            "<div class='condition-item'>" | Add-Content -Path $HTML
+                            "<strong>$conditionDisplayName</strong><br>" | Add-Content -Path $HTML
+                            Write-ConditionValue -Condition $Item -HTML $HTML
+                            "</div>" | Add-Content -Path $HTML
+                        }
+                        elseif ($null -ne $Item.SubConditions) {
+                            $nestedGroupNumber++
+                            GroupBox -Condition $Item -HTML $HTML -Index $nestedGroupNumber -Depth ($Depth + 1)
+                        }
+                        # Show operator BETWEEN subconditions (but not after the last item)
+                        if ($itemCount -lt $Condition.SubConditions.Count) {
+                            "<div class='condition-operator-between-left'>$($Condition.Operator)</div>" | Add-Content -Path $HTML
+                        }
+                    }
+                }
+                else {
+                    # Render the condition itself as a condition-item
+                    $conditionDisplayName = Get-ConditionDisplayName -ConditionName $Condition.ConditionName
+                    "<div class='condition-item'>" | Add-Content -Path $HTML
+                    "<strong>$conditionDisplayName</strong><br>" | Add-Content -Path $HTML
+                    Write-ConditionValue -Condition $Condition -HTML $HTML
+                    "</div>" | Add-Content -Path $HTML
+                }
+                "</div>" | Add-Content -Path $HTML
+            }
+            $groupIndex = 0
+            $conditionOperator = if ($test.Condition.Operator) { $test.Condition.Operator } else { "And" }
+            foreach ($subCondition in @($test.Condition.SubConditions)) {
+                $groupIndex++
+                GroupBox -Condition $subCondition -HTML $HTML -Index $groupIndex -Depth 0
+                # Add operator between groups (except after the last group)
+                if ($groupIndex -lt $test.Condition.SubConditions.Count) {
+                    "<div class='condition-operator-between'>$conditionOperator</div>" | Add-Content -Path $HTML
+                }
+            }
+            "</div>" | Add-Content -Path $HTML
+        }
+        
+
+
         #Close section-content div
         "</div>" | Add-Content $HTML
     }
     #Close section-content div
     "</div>" | Add-Content $HTML
-
-
-
-    $test = Get-DlpCompliancePolicy | Where-Object Name -eq "Custom Policy3"
-
-    $test.PowerBIDlpLocation
-
 
 
 }
@@ -1332,9 +1603,9 @@ function tenantControls {
 
 '<div id="InformationProtection" class="tab-content active">' | Add-Content $HTML
 
-#labels
-#labelPolicies
-#AutoLabelingPolicy
+labels
+labelPolicies
+AutoLabelingPolicy
 
 '</div><div id="DLP" class="tab-content">' | Add-Content $HTML
 
