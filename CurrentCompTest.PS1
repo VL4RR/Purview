@@ -1190,7 +1190,10 @@ function DLPPolicies {
 
         $DLPRule = Get-DlpComplianceRule -DisplayName $DLPPol
         
+        $DLPPol = Get-DlpComplianceRule -Identity "ComplexTestRule"
 
+        $test = $DLPPol.AdvancedRule | ConvertFrom-Json
+        $test.Condition.SubConditions
 
         #Close section-content div
         "</div>" | Add-Content $HTML
