@@ -2,7 +2,7 @@
 #Connect-ExchangeOnline
 #Connect-MgGraph -Scopes "OrgSettings-AppsAndServices.Read.All", "Team.ReadBasic.All"
 
-##Define HTMLTest
+##Define HTML
 $HTML = "C:\temp\CurrentComplianceReport.html"
 $date = Get-Date -Format "yyyy-MM-dd"
 Set-Content -Path $HTML -Value @"
@@ -1188,13 +1188,14 @@ function DLPPolicies {
         ################################################### DLP RULES ################################################
 
 
-        $DLPRule = Get-DlpComplianceRule -DisplayName $DLPPol
+        $DLPRules = Get-DlpComplianceRule -Policy $DLPPol
         
-        $DLPPol = Get-DlpComplianceRule -Identity "ComplexTestRule"
+        foreach ($DLPRule in $DLPRules) {
 
-        $test = $DLPPol.AdvancedRule | ConvertFrom-Json
-        $test.Condition.SubConditions
-
+            $DLPRuleInfo = Get-DlpComplianceRule -DisplayName $DLPRule
+            $test = $DLPRuleInfo.AdvancedRule | ConvertFrom-Json
+            "<p>$($test.Condition.SubConditions -join '<br>')</p>" | add-content $HTML
+        }
         #Close section-content div
         "</div>" | Add-Content $HTML
     }
@@ -1335,9 +1336,9 @@ function tenantControls {
 
 '<div id="InformationProtection" class="tab-content active">' | Add-Content $HTML
 
-labels
-labelPolicies
-AutoLabelingPolicy
+#labels
+#labelPolicies
+#AutoLabelingPolicy
 
 '</div><div id="DLP" class="tab-content">' | Add-Content $HTML
 
