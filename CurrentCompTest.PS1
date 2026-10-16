@@ -1,5 +1,5 @@
-#Connect-IPPSSession
-#Connect-ExchangeOnline
+Connect-IPPSSession
+Connect-ExchangeOnline
 #Connect-MgGraph -Scopes "OrgSettings-AppsAndServices.Read.All", "Team.ReadBasic.All"
 
 ##Define HTML
