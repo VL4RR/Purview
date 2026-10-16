@@ -96,6 +96,34 @@ $RecipientTypeConv = @{
     "1"             = "User"
 }
 
+$allConditionsCondition = @{
+    "ContentContainsSensitiveInformation" = "Content Contains:"
+    "AccessScope"                         = "Content is shared:"
+    "SenderIPRanges"                      = "Sender IP address is:"
+    "RecipientDomainIs"                   = "Recipient domain is:"
+    "ContentExtensionMatchesWords"        = "Attachment extension is:"
+    "DocumentIsPasswordProtected"         = "Attachment is password protected"
+    "DocumentIsUnsupported"               = "Any email attachment's content could not be scanned"
+    "ProcessingLimitExceeded"             = "Any email attachment's content didn't complete scanning"
+    "HeaderMatchesPatterns"               = "Header matches patterns:"
+    "SubjectMatchesPatterns"              = "Subject matches patterns:"
+    "AnyOfRecipientAddressContainsWords"  = "Recipient address contains words:"
+    "FromAddressMatchesPatterns"          = "Sender address matches pattern"
+    "SenderDomainIs"                      = "Sender domain is:"
+    "SentToMemberOf"                      = "Recipient is a member of:"
+    "From"                                = "Sender is:"
+    "DocumentNameMatchesWords"            = "Attachment name matches words or phrases:"
+    "ContentPropertyContainsWords"        = "Attachment property is:"
+    "DocumentSizeOver"                    = "Attachment size equals or is greater than:"
+    "SentTo"                              = "Recipient is:"
+
+    "DocumentCreatedBy"                   = "Document created by:"
+    "DocumentCreatedOnOrAfter"            = "Document creation date is on or after"
+    "DocumentCreatedOnOrBefore"           = "Document creation date is on or before"
+    "DocumentLastModifiedOnOrAfter"       = "Document modification date is on or after"
+    "DocumentLastModifiedOnOrBefore"      = "Document modification date is on or before"
+}
+
 ##########################################################################################################################################################
 
 
@@ -1188,13 +1216,25 @@ function DLPPolicies {
         ################################################### DLP RULES ################################################
 
 
-        $DLPRules = Get-DlpComplianceRule -Policy $DLPPol
-        
-        foreach ($DLPRule in $DLPRules) {
-
-            $DLPRuleInfo = Get-DlpComplianceRule -DisplayName $DLPRule
-            $test = $DLPRuleInfo.AdvancedRule | ConvertFrom-Json
-            "<p>$($test.Condition.SubConditions -join '<br>')</p>" | add-content $HTML
+        foreach ($DLPPoll in $DLPPol.Name) {
+            $DLPRules = Get-DlpComplianceRule -Policy $DLPPoll
+            foreach ($DLPRule in $DLPRules.Name) {
+                $DLPRuleInfo = Get-DlpComplianceRule -Identity $DLPRule
+                "<div style='background-color: #e8f5e8; padding: 10px; border-radius: 4px; margin: 8px 0; color: #212529;'><strong>$($DLPRuleInfo.DisplayName):</strong></div>" | Add-Content -Path $HTML                
+                $DLPAdvRule = $DLPRuleInfo.AdvancedRule | ConvertFrom-Json
+                $DLPAdvRuleVal = $DlPAdvRule.Condition.SubConditions
+                foreach ($condition in $DLPAdvRuleVal) {
+                    if ($condition.ConditionName -eq "ContentContainsSensitiveInformation") {
+                        "<strong>$($condition.ConditionName)</strong><br>" | Add-Content $HTML
+                        foreach ($sensitiveType in $condition.Value.Groups.Sensitivetypes) {
+                            "$($sensitiveType.Name) --- $($sensitiveType.ConfidenceLevel) --- $($sensitiveType.MinCount) to $($sensitiveType.MaxCount)<br>" | Add-Content $HTML
+                        }
+                    }
+                    else {
+                        "<Strong>$($condition.ConditionName)</Strong><br>$($condition.Value)<br>" | Add-Content $HTML
+                    }   
+                }
+            }
         }
         #Close section-content div
         "</div>" | Add-Content $HTML
