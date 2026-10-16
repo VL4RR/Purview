@@ -9,18 +9,17 @@ Set-Content -Path $HTML -Value @"
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
 <title>Microsoft Purview Current Compliance Posture</title>
 <style>
 body {font-family: "Segoe UI", sans-serif;background-color: #f8f9fa;color: #212529;margin: 20px;font-size: 17px;}
 h1 {text-align: center;color: #000000;margin-bottom: 10px;}
 h2 {background: #e3f2fd;color: #0d6efd;padding: 12px;border: 1px solid #ddd;border-left: 4px solid #0d6efd;border-radius: 4px;margin-top: 20px;cursor: pointer;position:relative;}
-h2::after {content: " ▼";font-size: 0.9em;}
-h2.active::after {content: " ▲";}
+h2::after {content: " \25BC"; font-size: 0.9em;}
+h2.active::after {content: " \25B2";}
 .section-content {display: none;margin-left: 20px;padding: 10px;}
 h3 {background: #f8f9fa;color: #212529;padding: 12px;border: 1px solid #ddd;border-left: 3px solid #6c757d;border-radius: 4px;margin-top: 15px;cursor: pointer;position: relative;}
-h3::after {content: " ▼";font-size: 0.9em;}
-h3.active::after {content: " ▲";}
+h3::after {content: " \25BC"; font-size: 0.9em;}
+h3.active::after {content: " \25B2";}
 h3:hover {background: #e9ecef;}
 .h3-content {display: none;margin-left: 25px;padding: 15px;background-color: #fff;border: 1px solid #ddd;border-radius: 4px;}
 .tabs {display: flex;border-bottom: 2px solid #6c757d;margin-bottom: 20px;}
