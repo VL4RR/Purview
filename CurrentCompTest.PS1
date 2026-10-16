@@ -9,6 +9,7 @@ Set-Content -Path $HTML -Value @"
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
 <title>Microsoft Purview Current Compliance Posture</title>
 <style>
 body {font-family: "Segoe UI", sans-serif;background-color: #f8f9fa;color: #212529;margin: 20px;font-size: 17px;}
