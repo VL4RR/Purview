@@ -26,26 +26,45 @@ $allConditionsCondition = @{
     "DocumentLastModifiedOnOrBefore"      = "Document modification date is on or before"
 }
 
+function SensitiveTypes {
+    param($Condition)
+
+    Write-Host "$($Condition.ConditionName)"
+
+    foreach ($sensitiveType in $Condition.Value.Groups.Sensitivetypes) {
+        Write-Host "$($sensitiveType.Name) --- $($sensitiveType.ConfidenceLevel) --- $($sensitiveType.MinCount) to $($sensitiveType.MaxCount)"
+    }
+}
+
 $DLPPol = Get-DlpCompliancePolicy -Identity "ComplexTest"
 
 foreach ($DLPPoll in $DLPPol.Name) {
     $DLPRules = Get-DlpComplianceRule -Policy $DLPPoll
     foreach ($DLPRule in $DLPRules.Name) {
         $DLPRuleInfo = Get-DlpComplianceRule -Identity $DLPRule
-        Write-Host "$($DLPRuleInfo.DisplayName)" -foregroundcolor Green                
+        Write-Host "$($DLPRuleInfo.DisplayName)`n" -ForegroundColor Green
         $DLPAdvRule = $DLPRuleInfo.AdvancedRule | ConvertFrom-Json
-        $DLPAdvRuleVal = $DlPAdvRule.Condition.SubConditions
+        $DLPAdvRuleVal = $DLPAdvRule.Condition.SubConditions
+        if ($DLPAdvRuleVal.Operator.Count -ge 1) { 
+            Write-Host "Group 1:"  
+            $groupNumber = 1 
+        }
         foreach ($condition in $DLPAdvRuleVal) {
-            if ($condition.ConditionName -eq "ContentContainsSensitiveInformation") {
-                Write-host "$($allConditionsCondition[$condition.ConditionName])"
-                foreach ($sensitiveType in $condition.Value.Groups.Sensitivetypes) {
-                    Write-Host "$($sensitiveType.Name) --- $($sensitiveType.ConfidenceLevel) --- $($sensitiveType.MinCount) to $($sensitiveType.MaxCount)"
+            if ($condition.ConditionName -eq "ContentContainsSensitiveInformation") { SensitiveTypes $condition }
+            elseif ($condition.Operator -eq "And") {
+                $groupNumber ++
+                Write-Host "Group $groupNumber"
+                foreach ($GroupCondition in $condition.SubConditions) {
+
+                    if ($GroupCondition.ConditionName -eq "ContentContainsSensitiveInformation") { SensitiveTypes $GroupCondition }
+                    else { Write-Host "$($GroupCondition.ConditionName)`n$($GroupCondition.Value)`n" }
                 }
             }
-            else {
-                Write-Host "$($allConditionsCondition[$condition.ConditionName])`n$($condition.Value)`n"
-            }
+            else { Write-Host "$($condition.ConditionName)`n$($condition.Value)`n" }
         }
     }
 }
 
+#$DLPAdvRule.Condition.SubConditions.Subconditions | Format-List *
+$DLPAdvRuleVal.Value.Groups.Sensitivetypes | format-List *
+## Need to sort labels
