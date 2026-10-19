@@ -1,5 +1,5 @@
-Connect-IPPSSession
-Connect-ExchangeOnline
+#Connect-IPPSSession
+#Connect-ExchangeOnline
 #Connect-MgGraph -Scopes "OrgSettings-AppsAndServices.Read.All", "Team.ReadBasic.All"
 
 ##Define HTML
@@ -1376,9 +1376,9 @@ function tenantControls {
 
 '<div id="InformationProtection" class="tab-content active">' | Add-Content $HTML
 
-labels
-labelPolicies
-AutoLabelingPolicy
+#labels
+#labelPolicies
+#AutoLabelingPolicy
 
 '</div><div id="DLP" class="tab-content">' | Add-Content $HTML
 
