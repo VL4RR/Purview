@@ -1,6 +1,6 @@
 $allConditionsCondition = @{
     "ContentContainsSensitiveInformation"  = "Content Contains:"
-    "AccessScope"                          = "Content is shared from Microsoft 365:"
+    "AccessScope"                          = "Content is shared from Microsoft 365"
     "SenderIPRanges"                       = "Sender IP address is:"
     "RecipientDomainIs"                    = "Recipient domain is:"
     "ContentExtensionMatchesWords"         = "File extension is:"
@@ -48,6 +48,7 @@ $allConditionsCondition = @{
     "DocumentCreatedOnOrBefore"            = "Document creation date is on or before"
     "DocumentLastModifiedOnOrAfter"        = "Document modification date is on or after"
     "DocumentLastModifiedOnOrBefore"       = "Document modification date is on or before"
+    "ContentIsSharedWith"                  = "Document is shared:"
 }
 
 $Labels = Get-Label
@@ -122,3 +123,4 @@ foreach ($DLPPoll in $DLPPol.Name) {
 
 #$allConditionsCondition[$DLPAdvRuleVal.ConditionName]
 #$DLPAdvRuleVal.ConditionName.Count
+
